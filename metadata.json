@@ -1,0 +1,8 @@
+{
+  "name": "MindTrack AI",
+  "description": "A smart study planner and mental wellness assistant that helps students balance academic productivity with psychological well-being using AI insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
