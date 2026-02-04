@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, OpenRouterConfig } from '../types';
-import { Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, Sparkles, Lock } from 'lucide-react';
+import { Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, Sparkles, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { fetchModels } from '../services/openRouterService';
 
 interface Props {
@@ -9,9 +9,10 @@ interface Props {
   openRouterConfig: OpenRouterConfig;
   onUpdateProfile: (profile: UserProfile) => void;
   onUpdateConfig: (config: OpenRouterConfig) => void;
+  onResetApp: () => void;
 }
 
-const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile, onUpdateConfig }) => {
+const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile, onUpdateConfig, onResetApp }) => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -89,7 +90,6 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
     );
   };
 
-  // Only lock if we have NO key. If we have a key but haven't fetched yet, let them use default or previous.
   const isModelsLocked = !localConfig.apiKey;
   const availableModels = localConfig.availableModels || [];
 
@@ -113,126 +113,153 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
-        <div className="xl:col-span-8 bg-white p-12 md:p-20 rounded-[4rem] shadow-sm border border-slate-100 flex flex-col">
-          <div className="flex items-center justify-between mb-20">
-            <div className="flex items-center gap-8">
-              <div className="p-6 bg-slate-50 text-indigo-600 rounded-[2rem] shadow-sm border border-slate-100">
-                <UserIcon size={36} />
+        <div className="xl:col-span-8 space-y-12">
+          <div className="bg-white p-12 md:p-20 rounded-[4rem] shadow-sm border border-slate-100 flex flex-col">
+            <div className="flex items-center justify-between mb-20">
+              <div className="flex items-center gap-8">
+                <div className="p-6 bg-slate-50 text-indigo-600 rounded-[2rem] shadow-sm border border-slate-100">
+                  <UserIcon size={36} />
+                </div>
+                <h3 className="text-5xl font-black text-slate-800 tracking-tight">Account Identity</h3>
               </div>
-              <h3 className="text-5xl font-black text-slate-800 tracking-tight">Account Identity</h3>
+              
+              <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                <div className="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-4 border-white shadow-2xl overflow-hidden flex items-center justify-center text-slate-200">
+                  {localProfile.avatar ? (
+                    <img src={localProfile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon size={48} />
+                  )}
+                </div>
+                <div className="absolute inset-0 bg-indigo-600/60 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-sm">
+                  <Upload size={32} />
+                </div>
+                <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
+              </div>
             </div>
-            
-            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-              <div className="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-4 border-white shadow-2xl overflow-hidden flex items-center justify-center text-slate-200">
-                {localProfile.avatar ? (
-                  <img src={localProfile.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <ImageIcon size={48} />
-                )}
-              </div>
-              <div className="absolute inset-0 bg-indigo-600/60 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-sm">
-                <Upload size={32} />
-              </div>
-              <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
-            </div>
-          </div>
 
-          <div className="space-y-14">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div className="space-y-5">
-                {renderMandatoryLabel("Student Name", localProfile.name)}
-                <input
-                  className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
-                  value={localProfile.name}
-                  onChange={e => setLocalProfile({ ...localProfile, name: e.target.value })}
-                  placeholder="Enter your name"
-                />
-              </div>
-              <div className="space-y-5">
-                {renderMandatoryLabel("Academic Stream", localProfile.stream)}
-                <input
-                  className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
-                  value={localProfile.stream}
-                  onChange={e => setLocalProfile({ ...localProfile, stream: e.target.value })}
-                  placeholder="e.g. Computer Science"
-                />
-              </div>
-              <div className="space-y-5">
-                {renderMandatoryLabel("Gender Orientation", localProfile.gender)}
-                <div className="relative">
-                  <select
-                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer shadow-inner"
-                    value={localProfile.gender}
-                    onChange={e => setLocalProfile({ ...localProfile, gender: e.target.value })}
-                  >
-                    <option value="Not Specified">Select...</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Non-binary">Non-binary</option>
-                  </select>
-                  <ChevronDown size={32} className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <div className="space-y-14">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="space-y-5">
+                  {renderMandatoryLabel("Student Name", localProfile.name)}
+                  <input
+                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
+                    value={localProfile.name}
+                    onChange={e => setLocalProfile({ ...localProfile, name: e.target.value })}
+                    placeholder="Enter your name"
+                  />
+                </div>
+                <div className="space-y-5">
+                  {renderMandatoryLabel("Academic Stream", localProfile.stream)}
+                  <input
+                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
+                    value={localProfile.stream}
+                    onChange={e => setLocalProfile({ ...localProfile, stream: e.target.value })}
+                    placeholder="e.g. Computer Science"
+                  />
+                </div>
+                <div className="space-y-5">
+                  {renderMandatoryLabel("Gender Orientation", localProfile.gender)}
+                  <div className="relative">
+                    <select
+                      className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer shadow-inner"
+                      value={localProfile.gender}
+                      onChange={e => setLocalProfile({ ...localProfile, gender: e.target.value })}
+                    >
+                      <option value="Not Specified">Select...</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Non-binary">Non-binary</option>
+                    </select>
+                    <ChevronDown size={32} className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div className="space-y-5">
+                  {renderMandatoryLabel("Blood Type Identifier", localProfile.bloodType)}
+                  <div className="relative">
+                    <select
+                      className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer shadow-inner"
+                      value={localProfile.bloodType}
+                      onChange={e => setLocalProfile({ ...localProfile, bloodType: e.target.value })}
+                    >
+                      <option value="">Select blood type...</option>
+                      {bloodTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                    <ChevronDown size={32} className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-5">
-                {renderMandatoryLabel("Blood Type Identifier", localProfile.bloodType)}
-                <div className="relative">
-                  <select
-                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer shadow-inner"
-                    value={localProfile.bloodType}
-                    onChange={e => setLocalProfile({ ...localProfile, bloodType: e.target.value })}
-                  >
-                    <option value="">Select blood type...</option>
-                    {bloodTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                  </select>
-                  <ChevronDown size={32} className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="space-y-5">
+                  <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Current Academic Year</label>
+                  <input
+                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all shadow-inner"
+                    value={localProfile.collegeYear}
+                    onChange={e => setLocalProfile({ ...localProfile, collegeYear: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-5">
+                  {renderMandatoryLabel("User Chronology (Age)", localProfile.age)}
+                  <input
+                    type="number"
+                    min="10"
+                    max="120"
+                    className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
+                    value={localProfile.age || ''}
+                    onChange={e => setLocalProfile({ ...localProfile, age: parseInt(e.target.value) || 0 })}
+                    placeholder="e.g. 20 (Mandatory 10-120)"
+                  />
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               <div className="space-y-5">
-                <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Current Academic Year</label>
-                <input
-                  className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all shadow-inner"
-                  value={localProfile.collegeYear}
-                  onChange={e => setLocalProfile({ ...localProfile, collegeYear: e.target.value })}
-                />
-              </div>
-              <div className="space-y-5">
-                {renderMandatoryLabel("User Chronology (Age)", localProfile.age)}
-                <input
-                  type="number"
-                  min="10"
-                  max="120"
-                  className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
-                  value={localProfile.age || ''}
-                  onChange={e => setLocalProfile({ ...localProfile, age: parseInt(e.target.value) || 0 })}
-                  placeholder="e.g. 20 (Mandatory 10-120)"
+                <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Personal Bio / Scholarly Goals</label>
+                <textarea
+                  rows={5}
+                  className="w-full p-8 rounded-[2.5rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all resize-none placeholder:text-slate-300 shadow-inner"
+                  value={localProfile.bio}
+                  onChange={e => setLocalProfile({ ...localProfile, bio: e.target.value })}
+                  placeholder="Briefly describe your goals for tailored AI advice..."
                 />
               </div>
             </div>
 
-            <div className="space-y-5">
-              <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Personal Bio / Scholarly Goals</label>
-              <textarea
-                rows={5}
-                className="w-full p-8 rounded-[2.5rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all resize-none placeholder:text-slate-300 shadow-inner"
-                value={localProfile.bio}
-                onChange={e => setLocalProfile({ ...localProfile, bio: e.target.value })}
-                placeholder="Briefly describe your goals for tailored AI advice..."
-              />
-            </div>
+            <button
+              onClick={handleSaveAll}
+              className={`w-full py-10 rounded-[2.5rem] font-black text-xl transition-all flex items-center justify-center gap-6 shadow-2xl mt-20 active:scale-[0.98] tracking-[0.3em] uppercase ${
+                isProfileComplete ? 'bg-[#161b2e] text-white hover:bg-slate-800' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              {isProfileComplete ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+              Commit Configuration
+            </button>
           </div>
 
-          <button
-            onClick={handleSaveAll}
-            className={`w-full py-10 rounded-[2.5rem] font-black text-xl transition-all flex items-center justify-center gap-6 shadow-2xl mt-20 active:scale-[0.98] tracking-[0.3em] uppercase ${
-              isProfileComplete ? 'bg-[#161b2e] text-white hover:bg-slate-800' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            {isProfileComplete ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
-            Commit Configuration
-          </button>
+          {/* Danger Zone */}
+          <div className="bg-rose-50/50 p-12 md:p-20 rounded-[4rem] border border-rose-100 space-y-12">
+             <div className="flex items-center gap-6">
+                <div className="p-5 bg-rose-500 text-white rounded-[2rem] shadow-xl shadow-rose-100">
+                  <AlertTriangle size={36} />
+                </div>
+                <div>
+                   <h3 className="text-3xl font-black text-rose-900 tracking-tight">Danger Zone</h3>
+                   <p className="text-rose-600 font-bold opacity-70">Irreversible system modifications.</p>
+                </div>
+             </div>
+             
+             <div className="p-8 bg-white/60 rounded-[2.5rem] border border-rose-100 space-y-6">
+                <p className="text-sm font-bold text-rose-800 leading-relaxed">
+                  Resetting the application will wipe all local storage cache, including subjects, study plans, wellness logs, and profile data. This action cannot be undone.
+                </p>
+                <button 
+                  onClick={onResetApp}
+                  className="w-full py-6 bg-rose-500 text-white rounded-[1.5rem] font-black text-sm uppercase tracking-widest hover:bg-rose-600 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95"
+                >
+                  <Trash2 size={20} /> Purge All Local Data
+                </button>
+             </div>
+          </div>
         </div>
 
         <div className="xl:col-span-4 space-y-12">

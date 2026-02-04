@@ -161,6 +161,15 @@ const App: React.FC = () => {
   const updateProfile = (profile: UserProfile) => setState(prev => ({ ...prev, profile }));
   const updateConfig = (config: OpenRouterConfig) => setState(prev => ({ ...prev, openRouterConfig: config }));
 
+  const resetApp = () => {
+    if (window.confirm("FATAL ACTION: This will permanently delete all subjects, tasks, resources, wellness logs, and profile data. Are you sure?")) {
+      localStorage.clear();
+      setState(INITIAL_STATE);
+      setActiveTab('settings');
+      window.location.reload(); // Force reload to ensure all states are clean
+    }
+  };
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'planner', label: 'Study Plan', icon: <Calendar size={18} /> },
@@ -300,7 +309,15 @@ const App: React.FC = () => {
               )}
               {activeTab === 'mood' && <MoodTracker onAddMood={addMood} entries={state.moodEntries} />}
               {activeTab === 'resources' && <ResourceManager state={state} onAddResource={addResource} onDeleteResource={deleteResource} />}
-              {activeTab === 'settings' && <Settings profile={state.profile} openRouterConfig={state.openRouterConfig} onUpdateProfile={updateProfile} onUpdateConfig={updateConfig} />}
+              {activeTab === 'settings' && (
+                <Settings 
+                  profile={state.profile} 
+                  openRouterConfig={state.openRouterConfig} 
+                  onUpdateProfile={updateProfile} 
+                  onUpdateConfig={updateConfig} 
+                  onResetApp={resetApp}
+                />
+              )}
             </div>
           )}
         </div>
