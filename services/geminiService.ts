@@ -1,10 +1,17 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, AppState, Resource } from "../types";
+import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, AppState, Resource } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+};
 
 export const transcribeYoutubeVideo = async (url: string): Promise<string> => {
+  const ai = getAI();
+  if (!ai) return "AI Service not configured.";
+
   const prompt = `Please provide a detailed summary and a key-point transcript for the YouTube video at this URL: ${url}. 
   If you cannot access the video directly, use your search tools to find information about its content. 
   Focus on educational value and main takeaways.`;
@@ -21,6 +28,9 @@ export const transcribeYoutubeVideo = async (url: string): Promise<string> => {
 };
 
 export const generateStudyPlan = async (subjects: Subject[]): Promise<Partial<StudyTask>[]> => {
+  const ai = getAI();
+  if (!ai) return [];
+
   const prompt = `Generate a daily study plan for the next 7 days based on these subjects: ${JSON.stringify(subjects)}. 
   Distribute tasks intelligently across the day. 
   Assign a category ('lecture', 'assignment', 'revision', 'exam-prep'), difficulty (1-5), and a logical startTime (HH:mm format between 08:00 and 22:00) to each task.`;
@@ -64,6 +74,9 @@ export const generateStudyPlan = async (subjects: Subject[]): Promise<Partial<St
 };
 
 export const generateStudyResources = async (profile: UserProfile, subjects: Subject[]): Promise<{title: string, advice: string}[]> => {
+  const ai = getAI();
+  if (!ai) return [];
+
   const prompt = `Act as an AI Intelligent Tutor. Based on this profile: ${JSON.stringify(profile)} 
   and these subjects: ${JSON.stringify(subjects)}, generate 5 specific study resource guides or conceptual frameworks the student should follow.`;
 
@@ -101,6 +114,9 @@ export const generateStudyResources = async (profile: UserProfile, subjects: Sub
 };
 
 export const analyzeWellness = async (state: AppState): Promise<WellnessInsight> => {
+  const ai = getAI();
+  if (!ai) return { summary: "Offline", tips: [], burnoutWarning: false, correlation: "" };
+
   const snapshot = {
     profile: state.profile,
     subjects: state.subjects.map(s => ({ name: s.name, priority: s.priority })),
@@ -152,6 +168,9 @@ export const sendMultimodalMessage = async (
   context: { subjects: Subject[], tasks: StudyTask[], moodCount: number }, 
   messages: { role: 'user' | 'assistant', content: string, attached?: Resource[] }[]
 ): Promise<string> => {
+  const ai = getAI();
+  if (!ai) return "AI Service not configured.";
+
   const lastUserMessage = messages[messages.length - 1];
   
   const parts: any[] = [];

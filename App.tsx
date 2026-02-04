@@ -1,16 +1,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppState, Subject, StudyTask, MoodEntry, Resource, StudySession, UserProfile, OpenRouterConfig } from './types';
-import Dashboard from './components/Dashboard';
-import StudyPlanner from './components/StudyPlanner';
-import MoodTracker from './components/MoodTracker';
-import ResourceManager from './components/ResourceManager';
-import ProductivityTracker from './components/ProductivityTracker';
-import Settings from './components/Settings';
-import AIChatbot from './components/AIChatbot';
+import { AppState, Subject, StudyTask, MoodEntry, Resource, StudySession, UserProfile, OpenRouterConfig } from './types.ts';
+import Dashboard from './components/Dashboard.tsx';
+import StudyPlanner from './components/StudyPlanner.tsx';
+import MoodTracker from './components/MoodTracker.tsx';
+import ResourceManager from './components/ResourceManager.tsx';
+import ProductivityTracker from './components/ProductivityTracker.tsx';
+import Settings from './components/Settings.tsx';
+import AIChatbot from './components/AIChatbot.tsx';
 import { LayoutDashboard, Calendar, Smile, Library, Menu, Brain, Sparkles, Zap, Settings as SettingsIcon, Cpu, X, Lock } from 'lucide-react';
-import { analyzeWellness as analyzeWellnessGemini } from './services/geminiService';
-import { analyzeWellness as analyzeWellnessOpenRouter } from './services/openRouterService';
+import { analyzeWellness as analyzeWellnessGemini } from './services/geminiService.ts';
+import { analyzeWellness as analyzeWellnessOpenRouter } from './services/openRouterService.ts';
 
 const INITIAL_STATE: AppState = {
   profile: {
