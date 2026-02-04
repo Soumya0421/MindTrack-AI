@@ -221,7 +221,7 @@ const App: React.FC = () => {
              <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">AI Cluster</p>
                 <p className="text-[11px] font-black text-slate-700 truncate">
-                  {state.openRouterConfig.apiKey ? (state.openRouterConfig.selectedModel.split('/').pop() || 'OpenRouter') : 'Offline'}
+                  {isProfileComplete ? (state.openRouterConfig.selectedModel.split('/').pop() || 'OpenRouter') : 'No model selected'}
                 </p>
              </div>
           </div>
@@ -289,7 +289,15 @@ const App: React.FC = () => {
                   onToggleTask={toggleTask} 
                 />
               )}
-              {activeTab === 'productivity' && <ProductivityTracker subjects={state.subjects} sessions={state.studySessions} onAddSession={addSession} />}
+              {activeTab === 'productivity' && (
+                <ProductivityTracker 
+                  subjects={state.subjects} 
+                  sessions={state.studySessions} 
+                  onAddSession={addSession} 
+                  tasks={state.studyTasks}
+                  onToggleTask={toggleTask}
+                />
+              )}
               {activeTab === 'mood' && <MoodTracker onAddMood={addMood} entries={state.moodEntries} />}
               {activeTab === 'resources' && <ResourceManager state={state} onAddResource={addResource} onDeleteResource={deleteResource} />}
               {activeTab === 'settings' && <Settings profile={state.profile} openRouterConfig={state.openRouterConfig} onUpdateProfile={updateProfile} onUpdateConfig={updateConfig} />}

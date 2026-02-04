@@ -1,7 +1,7 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, OpenRouterConfig } from '../types';
-import { Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, Sparkles, Lock } from 'lucide-react';
 import { fetchModels } from '../services/openRouterService';
 
 interface Props {
@@ -15,7 +15,6 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isFetching, setIsFetching] = useState(false);
-  const [models, setModels] = useState<{ id: string, name: string }[]>([]);
   
   const [localProfile, setLocalProfile] = useState<UserProfile>(profile);
   const [localConfig, setLocalConfig] = useState<OpenRouterConfig>(openRouterConfig);
@@ -40,7 +39,8 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
     setIsFetching(true);
     try {
       const fetched = await fetchModels(localConfig.apiKey);
-      setModels(fetched.map((m: any) => ({ id: m.id, name: m.name || m.id })));
+      const modelList = fetched.map((m: any) => ({ id: m.id, name: m.name || m.id }));
+      setLocalConfig(prev => ({ ...prev, availableModels: modelList }));
       showSuccess('Available models synchronized.');
     } catch (e: any) {
       setError(e.message || 'Failed to fetch models');
@@ -88,6 +88,10 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
       </label>
     );
   };
+
+  // Only lock if we have NO key. If we have a key but haven't fetched yet, let them use default or previous.
+  const isModelsLocked = !localConfig.apiKey;
+  const availableModels = localConfig.availableModels || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-16 pb-32 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -269,19 +273,27 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                 </div>
 
                 <div className="space-y-5">
-                   <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em] ml-3">Model Provider</label>
-                   <div className="relative">
+                   <div className="flex items-center justify-between ml-3">
+                     <label className={`text-[12px] font-black uppercase tracking-[0.2em] ${isModelsLocked ? 'text-slate-300' : 'text-slate-400'}`}>Model Provider</label>
+                     {availableModels.length === 0 && localConfig.apiKey && <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Lock size={10} /> Sync Advised</span>}
+                   </div>
+                   <div className="relative group">
                       <select
-                        className="w-full p-8 rounded-[2rem] bg-slate-50 border-2 border-slate-100 text-lg font-bold text-slate-800 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer shadow-inner"
+                        disabled={isModelsLocked}
+                        className={`w-full p-8 rounded-[2rem] border-2 text-lg font-bold outline-none transition-all appearance-none shadow-inner ${
+                          isModelsLocked 
+                          ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' 
+                          : 'bg-slate-50 border-slate-100 text-slate-800 focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/20 cursor-pointer'
+                        }`}
                         value={localConfig.selectedModel}
                         onChange={e => setLocalConfig({ ...localConfig, selectedModel: e.target.value })}
                       >
-                        <option value="google/gemini-flash-1.5">Gemini 1.5 Flash</option>
-                        {models.map(m => (
+                        <option value="google/gemini-flash-1.5">Gemini 1.5 Flash (Default)</option>
+                        {availableModels.map(m => (
                           <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
                       </select>
-                      <ChevronDown size={32} className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <ChevronDown size={32} className={`absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none ${isModelsLocked ? 'text-slate-200' : 'text-slate-400'}`} />
                    </div>
                 </div>
              </div>

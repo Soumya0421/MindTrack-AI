@@ -1,11 +1,12 @@
 
-import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, OpenRouterConfig } from "../types";
+import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, OpenRouterConfig, Resource } from "../types";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export const fetchModels = async (apiKey: string) => {
   if (!apiKey) throw new Error("API Key required to fetch models");
   const response = await fetch("https://openrouter.ai/api/v1/models", {
+    credentials: 'omit',
     headers: {
       "Authorization": `Bearer ${apiKey}`,
     }
@@ -38,10 +39,11 @@ const callOpenRouter = async (config: OpenRouterConfig, systemPrompt: string, us
 
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
+    credentials: 'omit',
     headers: {
       "Authorization": `Bearer ${config.apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": window.location.origin,
+      "HTTP-Referer": "https://mindtrack.ai",
       "X-Title": "MindTrack AI"
     },
     body: JSON.stringify({
@@ -54,7 +56,7 @@ const callOpenRouter = async (config: OpenRouterConfig, systemPrompt: string, us
   });
 
   if (!response.ok) {
-    const err = await response.json();
+    const err = await response.json().catch(() => ({ error: { message: "OpenRouter Request Failed" } }));
     throw new Error(err.error?.message || "OpenRouter Request Failed");
   }
 
@@ -63,6 +65,53 @@ const callOpenRouter = async (config: OpenRouterConfig, systemPrompt: string, us
   if (!content) throw new Error("Empty response from provider");
   
   return parseJsonResponse(content);
+};
+
+export const sendChatMessage = async (
+  config: OpenRouterConfig, 
+  profile: UserProfile, 
+  context: { subjects: Subject[], tasks: StudyTask[], moods: MoodEntry[] }, 
+  messages: { role: 'user' | 'assistant', content: string, attached?: Resource[] }[]
+) => {
+  if (!config.apiKey) throw new Error("API Key missing");
+
+  const system = `You are MindTrack AI assistant. Help with academic scheduling and wellness.
+  Student Profile: ${profile.name} (${profile.stream}, Year ${profile.collegeYear}).
+  Academic Context: ${context.subjects.length} subjects, ${context.tasks.filter(t => !t.completed).length} pending tasks.
+  Wellness Context: ${context.moods.length} logs recorded.
+  Provide intelligent and encouraging advice. Use attached resources as context.`;
+
+  const mappedMessages = messages.map(m => {
+    let content = m.content;
+    if (m.attached && m.attached.length > 0) {
+      const resourceContext = m.attached.map(r => `[ATTACHMENT: ${r.title}] Notes: ${r.notes || 'None'}`).join('\n');
+      content = `[CONTEXT ATTACHMENTS]\n${resourceContext}\n\nUser Query: ${content}`;
+    }
+    return { role: m.role, content };
+  });
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    credentials: 'omit',
+    headers: {
+      "Authorization": `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://mindtrack.ai",
+      "X-Title": "MindTrack AI"
+    },
+    body: JSON.stringify({
+      model: config.selectedModel || "google/gemini-flash-1.5",
+      messages: [{ role: "system", content: system }, ...mappedMessages]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: { message: "Sync failure" } }));
+    throw new Error(err.error?.message || "Sync failure");
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
 };
 
 export const generateStudyPlan = async (config: OpenRouterConfig, subjects: Subject[]): Promise<Partial<StudyTask>[]> => {
@@ -92,14 +141,14 @@ export const generateStudyResources = async (config: OpenRouterConfig, profile: 
 };
 
 export const analyzeWellness = async (config: OpenRouterConfig, moodEntries: MoodEntry[], tasks: StudyTask[]): Promise<WellnessInsight> => {
-  const system = `Analyze wellness data. Return ONLY a JSON object with: summary, tips (array of strings), burnoutWarning (boolean), and correlation (string).`;
+  const system = `Analyze wellness and biometric data. Take into account 'healthSymptoms' and 'wellnessTags' provided in the history. Return ONLY a JSON object with: summary, tips (array of strings), burnoutWarning (boolean), and correlation (string).`;
   const prompt = `History: ${JSON.stringify(moodEntries.slice(-7))}. Pending Tasks: ${tasks.filter(t => !t.completed).length}.`;
   try {
     return await callOpenRouter(config, system, prompt);
   } catch (e) {
     return {
       summary: "Neural analysis encountered a provider error. Please check your API settings.",
-      tips: ["Check OpenRouter Key", "Try a different model"],
+      tips: ["Sync failed - check connection"],
       burnoutWarning: false,
       correlation: "Connection pending."
     };

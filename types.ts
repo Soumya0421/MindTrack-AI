@@ -39,7 +39,7 @@ export interface Resource {
   title: string;
   url?: string;
   notes?: string;
-  type: 'video' | 'document' | 'note' | 'file';
+  type: 'video' | 'document' | 'note' | 'file' | 'image';
   fileName?: string;
   fileData?: string; // base64
 }
@@ -68,12 +68,13 @@ export interface MoodEntry {
   waterIntake: number;
   nutritionScore: number;
   journal: string;
-  // New Nutritional & Physical metrics
   proteinGrams?: number;
   fatGrams?: number;
   carbGrams?: number;
   totalCalories?: number;
   exerciseType?: string;
+  healthSymptoms?: string;
+  wellnessTags?: string[];
 }
 
 export interface StudySession {
@@ -94,6 +95,7 @@ export interface WellnessInsight {
 export interface OpenRouterConfig {
   apiKey: string;
   selectedModel: string;
+  availableModels?: { id: string, name: string }[];
 }
 
 export interface AppState {

@@ -4,13 +4,20 @@ import { MoodEntry } from '../types';
 import { 
   Smile, Frown, Meh, Save, History, MessageSquare, 
   AlertTriangle, Droplets, Moon, UtensilsCrossed, 
-  Dumbbell, Users, Zap, Star, Activity, Beef, Cookie, Pizza, Flame
+  Dumbbell, Users, Zap, Star, Activity, Beef, Cookie, Pizza, Flame,
+  Tag, HeartPulse, Pill, Thermometer
 } from 'lucide-react';
 
 interface Props {
   onAddMood: (entry: MoodEntry) => void;
   entries: MoodEntry[];
 }
+
+const WELLNESS_TAGS = [
+  "High Energy", "Fatigued", "Creative", "Anxious", "Calm", 
+  "Productive", "Brain Fog", "Focused", "Stressed", "Lonely",
+  "Inspired", "Irritable", "Motivated", "Nervous"
+];
 
 const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
   const [mood, setMood] = useState(3);
@@ -23,6 +30,8 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
   const [social, setSocial] = useState(3);
   const [productivity, setProductivity] = useState(3);
   const [journal, setJournal] = useState('');
+  const [healthSymptoms, setHealthSymptoms] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // New Macro & Exercise State
   const [protein, setProtein] = useState(0);
@@ -30,6 +39,12 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
   const [carbs, setCarbs] = useState(0);
   const [calories, setCalories] = useState(0);
   const [exerciseType, setExerciseType] = useState('');
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   const handleSave = () => {
     onAddMood({
@@ -49,9 +64,13 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
       fatGrams: fat,
       carbGrams: carbs,
       totalCalories: calories,
-      exerciseType
+      exerciseType,
+      healthSymptoms,
+      wellnessTags: selectedTags
     });
     setJournal('');
+    setHealthSymptoms('');
+    setSelectedTags([]);
     setMood(3);
     setStress(3);
     setWater(4);
@@ -110,7 +129,30 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
             </div>
           </div>
 
-          {/* New Nutritional & Physical Protocol Section */}
+          {/* Tags Selection */}
+          <div className="space-y-4">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
+              <Tag size={16} className="text-indigo-400" />
+              State Tags
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {WELLNESS_TAGS.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                    selectedTags.includes(tag) 
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' 
+                    : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nutritional & Physical Protocol Section */}
           <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl space-y-8">
             <div className="flex items-center gap-3">
               <UtensilsCrossed size={20} className="text-amber-400" />
@@ -185,7 +227,6 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
 
           {/* Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Sleep Section */}
             <div className="space-y-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-xs font-black uppercase text-slate-400 tracking-widest">
@@ -217,7 +258,6 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
               </div>
             </div>
 
-            {/* Activity & Social */}
             <div className="space-y-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-xs font-black uppercase text-slate-400 tracking-widest">
@@ -251,7 +291,6 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Water & Nutrition */}
             <div className="space-y-4 bg-slate-50 p-6 rounded-[2rem]">
                <div className="flex justify-between items-center text-xs font-black uppercase text-slate-400 tracking-widest mb-2">
                   <span className="flex items-center gap-2">
@@ -269,7 +308,6 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
                 ))}
               </div>
             </div>
-            {/* Productivity */}
             <div className="space-y-4 bg-slate-50 p-6 rounded-[2rem]">
                <div className="flex justify-between items-center text-xs font-black uppercase text-slate-400 tracking-widest mb-2">
                   <span className="flex items-center gap-2">
@@ -284,6 +322,20 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
                   onChange={(e) => setProductivity(parseInt(e.target.value))}
                 />
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
+              <Thermometer size={16} className="text-rose-400" />
+              Health Symptoms
+            </label>
+            <textarea 
+              rows={2}
+              placeholder="e.g. Headache, fatigue, muscle ache, nausea..."
+              className="w-full p-6 rounded-[2rem] bg-slate-50 border-none text-base font-bold text-slate-800 placeholder:text-slate-300 focus:ring-4 focus:ring-rose-500/10 outline-none resize-none shadow-inner"
+              value={healthSymptoms}
+              onChange={(e) => setHealthSymptoms(e.target.value)}
+            />
           </div>
 
           <div className="space-y-4">
@@ -331,6 +383,17 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
                       )}
                     </div>
                   </div>
+                  
+                  {entry.wellnessTags && entry.wellnessTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {entry.wellnessTags.map(tag => (
+                        <span key={tag} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-[8px] font-black uppercase tracking-widest">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {entry.proteinGrams !== undefined && entry.proteinGrams > 0 && (
                     <div className="flex gap-4 mt-4">
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -354,6 +417,14 @@ const MoodTracker: React.FC<Props> = ({ onAddMood, entries }) => {
                   </div>
                 )}
               </div>
+              
+              {entry.healthSymptoms && (
+                <div className="flex gap-3 items-center p-4 bg-rose-50/50 rounded-2xl border border-rose-100 text-xs font-bold text-rose-800">
+                  <HeartPulse size={16} />
+                  <span>Symptoms: {entry.healthSymptoms}</span>
+                </div>
+              )}
+
               {entry.journal && (
                 <div className="p-6 bg-slate-50 rounded-[1.8rem] text-sm text-slate-600 font-medium leading-relaxed border-l-4 border-indigo-200">
                   {entry.journal}

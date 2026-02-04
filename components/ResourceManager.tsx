@@ -4,9 +4,10 @@ import { Resource, Subject, AppState } from '../types';
 import { 
   Youtube, FileText, Trash2, Search, 
   Layers, StickyNote, Brain, Link as LinkIcon, ExternalLink,
-  ChevronDown, Sparkles, AlertCircle, Upload, FileCheck, Download, X
+  ChevronDown, Sparkles, AlertCircle, Upload, FileCheck, Download, X,
+  Image as ImageIcon, Loader2
 } from 'lucide-react';
-import { generateStudyResources as generateStudyResourcesGemini } from '../services/geminiService';
+import { generateStudyResources as generateStudyResourcesGemini, transcribeYoutubeVideo } from '../services/geminiService';
 import { generateStudyResources as generateStudyResourcesOpenRouter } from '../services/openRouterService';
 
 interface Props {
@@ -30,6 +31,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
   const [error, setError] = useState('');
   const [aiGuides, setAiGuides] = useState<{title: string, advice: string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateAIResources = async () => {
@@ -67,15 +69,33 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
     }
   };
 
-  const handleAdd = () => {
+  const isYoutube = (link: string) => link.toLowerCase().includes('youtube.com') || link.toLowerCase().includes('youtu.be');
+
+  const handleAdd = async () => {
     const targetSubject = activeSubject === 'all' ? (subjects[0]?.id || '') : activeSubject;
-    if (!title && !selectedFile) return;
+    if (!title && !selectedFile && !url) return;
     
-    let detectedType: 'video' | 'document' | 'note' | 'file' = 'document';
-    if (url.toLowerCase().includes('youtube.com') || url.toLowerCase().includes('youtu.be')) {
+    let detectedType: 'video' | 'document' | 'note' | 'file' | 'image' = 'document';
+    let finalNotes = notes;
+
+    if (isYoutube(url)) {
       detectedType = 'video';
+      if (!finalNotes) {
+        setIsTranscribing(true);
+        try {
+          finalNotes = await transcribeYoutubeVideo(url);
+        } catch (err) {
+          console.error("Transcription failed", err);
+          finalNotes = "Transcription failed or unavailable.";
+        }
+        setIsTranscribing(false);
+      }
     } else if (selectedFile) {
-      detectedType = 'file';
+      if (selectedFile.type.startsWith('image/')) {
+        detectedType = 'image';
+      } else {
+        detectedType = 'file';
+      }
     } else if (!url && notes) {
       detectedType = 'note';
     }
@@ -83,9 +103,9 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
     onAddResource({
       id: crypto.randomUUID(),
       subjectId: targetSubject,
-      title: title || selectedFile?.name || 'Untitled Resource',
+      title: title || selectedFile?.name || (isYoutube(url) ? 'YouTube Video' : 'Untitled Resource'),
       url,
-      notes,
+      notes: finalNotes,
       type: detectedType,
       fileName: selectedFile?.name,
       fileData: selectedFile?.data
@@ -105,7 +125,8 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
       const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = typeFilter === 'all' || 
         (typeFilter === 'video' && r.type === 'video') || 
-        (typeFilter === 'document' && (r.type === 'document' || r.type === 'file'));
+        (typeFilter === 'document' && (r.type === 'document' || r.type === 'file')) ||
+        (typeFilter === 'image' && r.type === 'image');
       return matchesSubject && matchesSearch && matchesType;
     });
   }, [resources, activeSubject, searchQuery, typeFilter]);
@@ -116,6 +137,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
       case 'document': 
       case 'file': return <FileCheck size={24} />;
       case 'note': return <StickyNote size={24} />;
+      case 'image': return <ImageIcon size={24} />;
       default: return <LinkIcon size={24} />;
     }
   };
@@ -131,7 +153,6 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
             <Layers size={22} className="text-slate-400" />
           </div>
           <div className="flex flex-col gap-4">
-            {/* THICK ALL RESOURCES BUTTON */}
             <button 
               onClick={() => setActiveSubject('all')} 
               className={`p-6 rounded-[1.8rem] text-left text-base font-black transition-all relative overflow-hidden group ${
@@ -141,9 +162,6 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
               }`}
             >
               <span className="relative z-10">All Resources</span>
-              {activeSubject === 'all' && (
-                <div className="absolute inset-0 bg-white/10 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-              )}
             </button>
             {subjects.map(s => (
               <button 
@@ -182,18 +200,23 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                 <div className="space-y-5">
                   <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">URL / Link</label>
                   <input 
-                    placeholder="Paste link here (Optional)" 
+                    placeholder="Paste YouTube link or other URL" 
                     className="w-full p-6 rounded-2xl bg-white border-none text-base font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" 
                     value={url} 
                     onChange={e => setUrl(e.target.value)} 
                   />
+                  {url && isYoutube(url) && (
+                    <p className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-2 px-2">
+                      <Sparkles size={12} /> Auto-transcription enabled
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-5">
-                <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Normal Text Notes</label>
+                <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Notes / Transcript</label>
                 <textarea 
-                  placeholder="Enter details here..." 
+                  placeholder="Enter details here... (Will be auto-filled for YouTube videos)" 
                   rows={4}
                   className="w-full p-6 rounded-2xl bg-white border-none text-base font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all resize-none placeholder:text-slate-300 shadow-sm" 
                   value={notes} 
@@ -203,7 +226,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
 
               {/* File Upload Section */}
               <div className="space-y-5">
-                <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Attachment (PDF, DOCX)</label>
+                <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Attachment (Image, PDF, DOCX)</label>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
                   className={`w-full p-12 border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-6 cursor-pointer transition-all ${
@@ -215,19 +238,22 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                     ref={fileInputRef} 
                     className="hidden" 
                     onChange={handleFileChange} 
-                    accept=".pdf,.doc,.docx"
+                    accept="image/*,.pdf,.doc,.docx"
                   />
                   {selectedFile ? (
                     <div className="flex items-center gap-8 w-full max-xl justify-between p-6 bg-white rounded-3xl shadow-lg border border-indigo-100 animate-in zoom-in-95">
                       <div className="flex items-center gap-6">
                         <div className="p-4 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-100">
-                          <FileCheck size={32} />
+                          {selectedFile.type.startsWith('image/') ? <ImageIcon size={32} /> : <FileCheck size={32} />}
                         </div>
                         <div className="text-left">
                           <p className="text-lg font-black text-slate-800 truncate max-w-[300px]">{selectedFile.name}</p>
                           <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider mt-1">Ready for Storage</p>
                         </div>
                       </div>
+                      {selectedFile.type.startsWith('image/') && (
+                         <img src={selectedFile.data} alt="Preview" className="w-20 h-20 rounded-xl object-cover border border-slate-100" />
+                      )}
                       <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
                         className="p-3 hover:bg-rose-50 rounded-full text-slate-300 hover:text-rose-500 transition-all"
@@ -241,22 +267,24 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                         <Upload size={40} />
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-black text-slate-500">Click to upload document or drop file here</p>
-                        <p className="text-sm text-slate-400 font-bold mt-2">PDF, DOCX supported</p>
+                        <p className="text-lg font-black text-slate-500">Click to upload document/image or drop file here</p>
+                        <p className="text-sm text-slate-400 font-bold mt-2">Images, PDF, DOCX supported</p>
                       </div>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* THICK SAVE TO VAULT BUTTON */}
+              {/* SAVE TO VAULT BUTTON */}
               <div className="relative pt-4">
                 <button 
                   onClick={handleAdd} 
-                  className="w-full py-8 bg-[#0e111a] text-white rounded-[1.5rem] font-black text-base hover:bg-slate-800 transition-all shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] active:scale-[0.98] tracking-[0.2em] uppercase relative overflow-hidden group"
+                  disabled={isTranscribing}
+                  className="w-full py-8 bg-[#0e111a] text-white rounded-[1.5rem] font-black text-base hover:bg-slate-800 transition-all shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] active:scale-[0.98] tracking-[0.2em] uppercase relative overflow-hidden group disabled:opacity-50"
                 >
-                  <span className="relative z-10">Save to Vault</span>
-                  <div className="absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                  <span className="relative z-10 flex items-center justify-center gap-3">
+                    {isTranscribing ? <><Loader2 className="animate-spin" size={20} /> Transcribing...</> : "Save to Vault"}
+                  </span>
                 </button>
               </div>
            </div>
@@ -281,6 +309,12 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                    All
                  </button>
                  <button 
+                  onClick={() => setTypeFilter('image')}
+                  className={`px-8 py-4 rounded-2xl text-[12px] font-black flex items-center gap-3 transition-all ${typeFilter === 'image' ? 'bg-[#2c37e1] text-white shadow-2xl shadow-indigo-200' : 'text-slate-400 hover:text-slate-600 bg-white shadow-sm'}`}
+                 >
+                   <ImageIcon size={18}/> Image
+                 </button>
+                 <button 
                   onClick={() => setTypeFilter('video')}
                   className={`px-8 py-4 rounded-2xl text-[12px] font-black flex items-center gap-3 transition-all ${typeFilter === 'video' ? 'bg-[#2c37e1] text-white shadow-2xl shadow-indigo-200' : 'text-slate-400 hover:text-slate-600 bg-white shadow-sm'}`}
                  >
@@ -300,12 +334,15 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
               {filteredResources.length > 0 ? (
                 <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-10">
                   {filteredResources.map(r => (
-                    <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex gap-8 items-center group hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all">
-                       <div className={`p-6 rounded-3xl shadow-sm ${
+                    <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex gap-8 items-center group hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all overflow-hidden">
+                       <div className={`p-6 rounded-3xl shadow-sm shrink-0 ${
                          r.type === 'video' ? 'bg-rose-50 text-rose-500' : 
+                         r.type === 'image' ? 'bg-emerald-50 text-emerald-500' :
                          (r.type === 'document' || r.type === 'file') ? 'bg-blue-50 text-blue-500' : 'bg-slate-50 text-slate-500'
                        }`}>
-                         {getIcon(r.type)}
+                         {r.type === 'image' && r.fileData ? (
+                           <img src={r.fileData} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                         ) : getIcon(r.type)}
                        </div>
                        <div className="flex-1 min-w-0">
                           <h4 className="font-black text-slate-800 text-lg truncate tracking-tight">{r.title}</h4>
@@ -321,12 +358,14 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                                 download={r.fileName || 'document'} 
                                 className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2 hover:underline tracking-widest bg-emerald-50 px-2 py-1 rounded-lg"
                               >
-                                Download <Download size={14} />
+                                {r.type === 'image' ? 'Download Image' : 'Download File'} <Download size={14} />
                               </a>
                             )}
                           </div>
                           {r.notes && (
-                            <p className="text-sm text-slate-400 mt-3 line-clamp-2 font-medium leading-relaxed">{r.notes}</p>
+                            <div className="text-sm text-slate-400 mt-3 line-clamp-3 font-medium leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 italic">
+                                "{r.notes}"
+                            </div>
                           )}
                        </div>
                        <button onClick={() => onDeleteResource(r.id)} className="p-4 text-slate-200 hover:text-rose-500 transition-colors bg-slate-50 rounded-2xl group-hover:bg-rose-50">
@@ -361,7 +400,6 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
              Activating advanced heuristics to analyze your stream ({profile.stream}) and current workload. I will architect a custom resource path tailored to your specific focus patterns.
            </p>
            
-           {/* THICK GENERATE BUTTON */}
            <button 
             onClick={handleGenerateAIResources}
             disabled={isGenerating}
@@ -389,7 +427,6 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
            )}
         </div>
         
-        {/* Decorative elements */}
         <div className="absolute -right-40 -bottom-40 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none"></div>
         <div className="absolute -left-20 -top-20 w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[120px] pointer-events-none"></div>
       </section>
