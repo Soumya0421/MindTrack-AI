@@ -1,7 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, OpenRouterConfig } from '../types';
-import { Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, Sparkles, Lock, Trash2, AlertTriangle } from 'lucide-react';
+import { 
+  Save, User as UserIcon, Shield, ChevronDown, CheckCircle2, 
+  Cpu, Key, RefreshCw, AlertCircle, Upload, Image as ImageIcon, 
+  Sparkles, Lock, Trash2, AlertTriangle, HelpCircle, ExternalLink 
+} from 'lucide-react';
 import { fetchModels } from '../services/openRouterService';
 
 interface Props {
@@ -11,6 +15,38 @@ interface Props {
   onUpdateConfig: (config: OpenRouterConfig) => void;
   onResetApp: () => void;
 }
+
+const SettingsTooltip: React.FC<{ title: string; text: string; link?: string }> = ({ title, text, link }) => (
+  <div className="group relative inline-block ml-2 cursor-help align-middle">
+    <HelpCircle size={14} className="text-slate-400 hover:text-indigo-500 transition-colors" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 p-5 bg-[#0f172a] text-white text-[11px] rounded-[1.5rem] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[150] shadow-2xl border border-white/10 pointer-events-none">
+      <div className="font-black uppercase tracking-[0.2em] text-indigo-400 mb-3 border-b border-white/5 pb-2">{title}</div>
+      <div className="space-y-3 font-medium leading-relaxed text-slate-300">
+        <p>{text}</p>
+        {link && (
+          <div className="pt-2">
+            <p className="text-[9px] font-black text-slate-500 mb-2 uppercase tracking-widest">Setup Steps:</p>
+            <ol className="list-decimal list-inside space-y-1 ml-1 text-indigo-200">
+              <li>Visit OpenRouter.ai</li>
+              <li>Sign in/Create account</li>
+              <li>Go to "Keys" section</li>
+              <li>Generate and copy key</li>
+            </ol>
+            <a 
+              href={link} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="mt-4 block w-full py-2 bg-indigo-600 rounded-xl text-center font-black uppercase tracking-widest text-[10px] pointer-events-auto hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+            >
+              Get Key Now <ExternalLink size={10} />
+            </a>
+          </div>
+        )}
+      </div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#0f172a]"></div>
+    </div>
+  </div>
+);
 
 const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile, onUpdateConfig, onResetApp }) => {
   const [success, setSuccess] = useState('');
@@ -81,12 +117,16 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
     setTimeout(() => setSuccess(''), 4000);
   };
 
-  const renderMandatoryLabel = (text: string, value: any) => {
+  const renderMandatoryLabel = (text: string, value: any, tooltipText?: string, link?: string) => {
     const isMissing = !value || (typeof value === 'string' && value.trim() === '') || value === 'Not Specified' || (typeof value === 'number' && (value < 10 || value > 120));
     return (
-      <label className={`text-[14px] font-black uppercase ml-3 tracking-[0.2em] flex items-center gap-2 ${isMissing ? 'text-rose-400' : 'text-slate-400'}`}>
-        {text} {isMissing && <span className="text-[10px] bg-rose-50 px-2 py-0.5 rounded-md text-rose-500">MANDATORY</span>}
-      </label>
+      <div className="flex items-center justify-between ml-3 mb-4">
+        <label className={`text-[12px] font-black uppercase tracking-[0.2em] flex items-center ${isMissing ? 'text-rose-400' : 'text-slate-400'}`}>
+          {text} 
+          {tooltipText && <SettingsTooltip title={text} text={tooltipText} link={link} />}
+          {isMissing && <span className="ml-2 text-[9px] bg-rose-50 px-2 py-0.5 rounded-md text-rose-500">MANDATORY</span>}
+        </label>
+      </div>
     );
   };
 
@@ -140,7 +180,7 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
 
             <div className="space-y-14">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {renderMandatoryLabel("Student Name", localProfile.name)}
                   <input
                     className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
@@ -149,7 +189,7 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                     placeholder="Enter your name"
                   />
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {renderMandatoryLabel("Academic Stream", localProfile.stream)}
                   <input
                     className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
@@ -158,7 +198,7 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                     placeholder="e.g. Computer Science"
                   />
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {renderMandatoryLabel("Gender Orientation", localProfile.gender)}
                   <div className="relative">
                     <select
@@ -174,7 +214,7 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                     <ChevronDown size={32} className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {renderMandatoryLabel("Blood Type Identifier", localProfile.bloodType)}
                   <div className="relative">
                     <select
@@ -191,15 +231,15 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-5">
-                  <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Current Academic Year</label>
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-slate-400 uppercase ml-3 mb-4 tracking-[0.2em] block">Current Academic Year</label>
                   <input
                     className="w-full p-8 rounded-[2.2rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all shadow-inner"
                     value={localProfile.collegeYear}
                     onChange={e => setLocalProfile({ ...localProfile, collegeYear: e.target.value })}
                   />
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {renderMandatoryLabel("User Chronology (Age)", localProfile.age)}
                   <input
                     type="number"
@@ -213,8 +253,8 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <label className="text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em]">Personal Bio / Scholarly Goals</label>
+              <div className="space-y-2">
+                <label className="text-[12px] font-black text-slate-400 uppercase ml-3 mb-4 tracking-[0.2em] block">Personal Bio / Scholarly Goals</label>
                 <textarea
                   rows={5}
                   className="w-full p-8 rounded-[2.5rem] bg-slate-100/50 border-2 border-transparent text-xl font-bold text-slate-800 focus:bg-white focus:border-indigo-500/20 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all resize-none placeholder:text-slate-300 shadow-inner"
@@ -278,13 +318,18 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
              )}
 
              <div className="space-y-10">
-                <div className="space-y-5">
-                   <div className="flex justify-between items-center ml-3">
-                     {renderMandatoryLabel("OpenRouter Key", localConfig.apiKey)}
+                <div className="space-y-2">
+                   <div className="flex justify-between items-center ml-3 mb-4">
+                     {renderMandatoryLabel(
+                       "OpenRouter Key", 
+                       localConfig.apiKey, 
+                       "OpenRouter bridges MindTrack AI with powerful neural models like Gemini and GPT. To get your key, visit the OpenRouter dashboard and generate an sk-or-v1 key.",
+                       "https://openrouter.ai/keys"
+                     )}
                      <button 
                       onClick={handleFetchModels}
                       disabled={isFetching}
-                      className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600 hover:text-indigo-700 flex items-center gap-2 transition-colors"
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 hover:text-indigo-700 flex items-center gap-2 transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
                      >
                        <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
                        Sync Models
@@ -292,15 +337,15 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                    </div>
                    <input
                     type="password"
-                    className="w-full p-8 rounded-[2rem] bg-slate-50 border-2 border-slate-100 text-lg font-bold text-slate-800 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
+                    className="w-full p-8 rounded-[2rem] bg-slate-100/50 border-2 border-slate-100 text-lg font-bold text-slate-800 focus:ring-8 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-300 shadow-inner"
                     value={localConfig.apiKey}
                     onChange={e => setLocalConfig({ ...localConfig, apiKey: e.target.value })}
                     placeholder="sk-or-v1-..."
                    />
                 </div>
 
-                <div className="space-y-5">
-                   <div className="flex items-center justify-between ml-3">
+                <div className="space-y-2">
+                   <div className="flex items-center justify-between ml-3 mb-4">
                      <label className={`text-[12px] font-black uppercase tracking-[0.2em] ${isModelsLocked ? 'text-slate-300' : 'text-slate-400'}`}>Model Provider</label>
                      {availableModels.length === 0 && localConfig.apiKey && <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Lock size={10} /> Sync Advised</span>}
                    </div>
@@ -310,7 +355,7 @@ const Settings: React.FC<Props> = ({ profile, openRouterConfig, onUpdateProfile,
                         className={`w-full p-8 rounded-[2rem] border-2 text-lg font-bold outline-none transition-all appearance-none shadow-inner ${
                           isModelsLocked 
                           ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' 
-                          : 'bg-slate-50 border-slate-100 text-slate-800 focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/20 cursor-pointer'
+                          : 'bg-slate-100/50 border-slate-100 text-slate-800 focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/20 cursor-pointer'
                         }`}
                         value={localConfig.selectedModel}
                         onChange={e => setLocalConfig({ ...localConfig, selectedModel: e.target.value })}

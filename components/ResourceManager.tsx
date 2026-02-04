@@ -7,7 +7,7 @@ import {
   ChevronDown, Sparkles, AlertCircle, Upload, FileCheck, Download, X,
   Image as ImageIcon, Loader2
 } from 'lucide-react';
-import { generateStudyResources as generateStudyResourcesGemini, transcribeYoutubeVideo } from '../services/geminiService';
+import { generateStudyResources as generateStudyResourcesGemini, transcribeYoutubeVideo, performOCR } from '../services/geminiService';
 import { generateStudyResources as generateStudyResourcesOpenRouter } from '../services/openRouterService';
 
 interface Props {
@@ -31,7 +31,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
   const [error, setError] = useState('');
   const [aiGuides, setAiGuides] = useState<{title: string, advice: string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateAIResources = async () => {
@@ -75,48 +75,57 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
     const targetSubject = activeSubject === 'all' ? (subjects[0]?.id || '') : activeSubject;
     if (!title && !selectedFile && !url) return;
     
+    setIsProcessing(true);
+    setError('');
+
     let detectedType: 'video' | 'document' | 'note' | 'file' | 'image' = 'document';
     let finalNotes = notes;
 
-    if (isYoutube(url)) {
-      detectedType = 'video';
-      if (!finalNotes) {
-        setIsTranscribing(true);
-        try {
+    try {
+      if (isYoutube(url)) {
+        detectedType = 'video';
+        if (!finalNotes) {
           finalNotes = await transcribeYoutubeVideo(url);
-        } catch (err) {
-          console.error("Transcription failed", err);
-          finalNotes = "Transcription failed or unavailable.";
         }
-        setIsTranscribing(false);
+      } else if (selectedFile) {
+        const isImage = selectedFile.type.startsWith('image/');
+        const isPDF = selectedFile.type === 'application/pdf';
+        detectedType = isImage ? 'image' : 'file';
+
+        // Perform OCR if it's an image or PDF to extract text content
+        if ((isImage || isPDF) && !finalNotes) {
+          const base64Data = selectedFile.data.split(',')[1] || selectedFile.data;
+          const extractedText = await performOCR(base64Data, selectedFile.type);
+          if (extractedText) {
+            finalNotes = `[EXTRACTED CONTENT]:\n${extractedText}`;
+          }
+        }
+      } else if (!url && notes) {
+        detectedType = 'note';
       }
-    } else if (selectedFile) {
-      if (selectedFile.type.startsWith('image/')) {
-        detectedType = 'image';
-      } else {
-        detectedType = 'file';
-      }
-    } else if (!url && notes) {
-      detectedType = 'note';
+
+      onAddResource({
+        id: crypto.randomUUID(),
+        subjectId: targetSubject,
+        title: title || selectedFile?.name || (isYoutube(url) ? 'YouTube Video' : 'Untitled Resource'),
+        url,
+        notes: finalNotes,
+        type: detectedType,
+        fileName: selectedFile?.name,
+        fileData: selectedFile?.data
+      });
+
+      // Reset form
+      setTitle(''); 
+      setUrl('');
+      setNotes('');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (e: any) {
+      setError(e.message || "Failed to process resource.");
+    } finally {
+      setIsProcessing(false);
     }
-
-    onAddResource({
-      id: crypto.randomUUID(),
-      subjectId: targetSubject,
-      title: title || selectedFile?.name || (isYoutube(url) ? 'YouTube Video' : 'Untitled Resource'),
-      url,
-      notes: finalNotes,
-      type: detectedType,
-      fileName: selectedFile?.name,
-      fileData: selectedFile?.data
-    });
-
-    // Reset form
-    setTitle(''); 
-    setUrl('');
-    setNotes('');
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const filteredResources = useMemo(() => {
@@ -187,6 +196,12 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
            <div className="bg-[#f2f4f7] p-12 md:p-16 rounded-[3.5rem] shadow-sm space-y-12">
               <h4 className="text-2xl font-black text-slate-800 tracking-tight">Add New Reference</h4>
               
+              {error && (
+                <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl flex items-center gap-3 text-sm font-bold animate-in fade-in">
+                  <AlertCircle size={18} /> {error}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div className="space-y-5">
                   <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Title</label>
@@ -207,7 +222,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                   />
                   {url && isYoutube(url) && (
                     <p className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-2 px-2">
-                      <Sparkles size={12} /> Auto-transcription enabled
+                      <Sparkles size={12} /> Search-based transcript enabled
                     </p>
                   )}
                 </div>
@@ -216,7 +231,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
               <div className="space-y-5">
                 <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1">Notes / Transcript</label>
                 <textarea 
-                  placeholder="Enter details here... (Will be auto-filled for YouTube videos)" 
+                  placeholder="Details will be auto-filled for YouTube or extracted from files (OCR)." 
                   rows={4}
                   className="w-full p-6 rounded-2xl bg-white border-none text-base font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all resize-none placeholder:text-slate-300 shadow-sm" 
                   value={notes} 
@@ -248,7 +263,7 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
                         </div>
                         <div className="text-left">
                           <p className="text-lg font-black text-slate-800 truncate max-w-[300px]">{selectedFile.name}</p>
-                          <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider mt-1">Ready for Storage</p>
+                          <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider mt-1">Ready for Storage & OCR</p>
                         </div>
                       </div>
                       {selectedFile.type.startsWith('image/') && (
@@ -279,11 +294,11 @@ const ResourceManager: React.FC<Props> = ({ state, onAddResource, onDeleteResour
               <div className="relative pt-4">
                 <button 
                   onClick={handleAdd} 
-                  disabled={isTranscribing}
+                  disabled={isProcessing}
                   className="w-full py-8 bg-[#0e111a] text-white rounded-[1.5rem] font-black text-base hover:bg-slate-800 transition-all shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] active:scale-[0.98] tracking-[0.2em] uppercase relative overflow-hidden group disabled:opacity-50"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-3">
-                    {isTranscribing ? <><Loader2 className="animate-spin" size={20} /> Transcribing...</> : "Save to Vault"}
+                    {isProcessing ? <><Loader2 className="animate-spin" size={20} /> Neural Processing...</> : "Save to Vault"}
                   </span>
                 </button>
               </div>

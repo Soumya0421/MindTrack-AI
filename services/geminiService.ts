@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, AppState, Resource } from "../types.ts";
+import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, AppState, Resource, AppStats } from "../types.ts";
 
 const getAI = () => {
   const apiKey = process.env.API_KEY;
@@ -8,23 +8,62 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+/**
+ * Performs OCR on an image or PDF using Gemini.
+ */
+export const performOCR = async (base64Data: string, mimeType: string): Promise<string> => {
+  const ai = getAI();
+  if (!ai) return "";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            },
+            {
+              text: "Act as a high-precision OCR engine. Extract all text from this document/image. Maintain the logical structure and formatting. If it's a table, represent it as a markdown table. If it's handwriting, do your best to transcribe it accurately. Output ONLY the extracted text."
+            }
+          ]
+        }
+      ]
+    });
+    return response.text || "";
+  } catch (e) {
+    console.error("OCR failed", e);
+    return "";
+  }
+};
+
 export const transcribeYoutubeVideo = async (url: string): Promise<string> => {
   const ai = getAI();
   if (!ai) return "AI Service not configured.";
 
-  const prompt = `Please provide a detailed summary and a key-point transcript for the YouTube video at this URL: ${url}. 
-  If you cannot access the video directly, use your search tools to find information about its content. 
-  Focus on educational value and main takeaways.`;
+  const prompt = `SEARCH AND TRANSCRIBE: Find the content, main summary, and key takeaways for the YouTube video at this URL: ${url}. 
+  Use Google Search grounding to find the actual transcript or detailed descriptions from the web.
+  If the video is a specific educational tutorial, provide the core steps and concepts discussed.
+  Output a clean, structured summary.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }]
-    }
-  });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
 
-  return response.text || "Failed to transcribe video content.";
+    return response.text || "Failed to find content for this video URL via search.";
+  } catch (e) {
+    console.error("YouTube sync failed", e);
+    return "Service error while retrieving video details.";
+  }
 };
 
 export const generateStudyPlan = async (subjects: Subject[]): Promise<Partial<StudyTask>[]> => {
@@ -165,78 +204,91 @@ export const analyzeWellness = async (state: AppState): Promise<WellnessInsight>
 
 export const sendMultimodalMessage = async (
   profile: UserProfile, 
-  context: { subjects: Subject[], tasks: StudyTask[], moodCount: number }, 
+  context: { 
+    subjects: Subject[], 
+    tasks: StudyTask[], 
+    moods: MoodEntry[],
+    stats: AppStats
+  }, 
   messages: { role: 'user' | 'assistant', content: string, attached?: Resource[] }[]
 ): Promise<string> => {
   const ai = getAI();
   if (!ai) return "AI Service not configured.";
 
-  const lastUserMessage = messages[messages.length - 1];
-  
-  const parts: any[] = [];
-  
-  // System Instruction Context with Refined Tag Formatting
-  const systemInstruction = `You are MindTrack AI assistant. Help with academic scheduling and wellness.
-  Student Profile: ${profile.name} (${profile.stream}, Year ${profile.collegeYear}).
-  Academic Context: ${context.subjects.length} subjects, ${context.tasks.filter(t => !t.completed).length} pending tasks.
-  Provide intelligent and encouraging advice. Use attached resources (including images and notes) as context.
+  const completionRate = context.tasks.length > 0 ? Math.round((context.tasks.filter(t => t.completed).length / context.tasks.length) * 100) : 0;
+  const lastMood = context.moods[context.moods.length - 1];
 
-  MANDATORY RESPONSE FORMATS FOR DETECTED CONTEXTS:
-  - If the user is asking about FOOD or NUTRITION:
-    1. Start with a 2-3 sentence summary of the dietary intake or advice.
-    2. Provide a detailed Markdown Table with columns: | Food Item | Protein (g) | Fat (g) | Carbs (g) | Calories |
-    3. End with a "Daily Total" row and a brief macro-correlation tip.
+  const systemInstruction = `You are the MindTrack Neural Assistant. You have full visibility into the student's holistic data ecosystem.
 
-  - If the user is asking about STUDY or ACADEMICS:
-    1. Start with a progress overview.
-    2. Provide a Markdown Table: | Subject | Topic | Status | Recommended Focus |
-    3. End with a "Learning Strategy" suggestion.
+STUDENT IDENTITY (PROFILE):
+- Name: ${profile.name}
+- Stream: ${profile.stream}
+- Year: ${profile.collegeYear}
+- Age: ${profile.age}
+- Blood Type: ${profile.bloodType}
+- Bio/Goals: ${profile.bio || "No specific goals set yet."}
 
-  - If the user is asking about HEALTH or WELLNESS:
-    1. Start with a holistic state summary.
-    2. Provide a Markdown Table: | Metric | Current Value | Status/Trend |
-    3. End with a scientific wellness directive.
+ACADEMIC VELOCITY (DASHBOARD):
+- Total Subjects: ${context.subjects.length}
+- Task Completion: ${completionRate}% (${context.tasks.filter(t=>!t.completed).length} pending tasks)
+- System XP: ${context.stats.points} (Level ${context.stats.level}, ${context.stats.streak} day streak)
 
-  - If the user is asking about SYMPTOMS or ILLNESS:
-    1. Start with a symptom analysis.
-    2. Provide a Markdown Table: | Symptom | Intensity (1-5) | Possible Trigger | Duration |
-    3. End with a pattern correlation insight.
+WELLNESS JOURNAL (LAST 5 LOGS):
+${JSON.stringify(context.moods.slice(-5))}
 
-  - If the user is asking about TASKS or PRODUCTIVITY:
-    1. Start with a backlog summary.
-    2. Provide a Markdown Table: | Task | Priority | Est. Time | Strategy |
-    3. End with a "Next Best Action" highlight.
+GROUNDING RULES (STRICT - NO HALLUCINATION):
+1. USE ONLY PROVIDED DATA: If the user asks about their progress, cite the ${completionRate}% rate. If they ask about wellness, cite the specific health symptoms or mood scores from the journal.
+2. NO DELUSIONS: Do not make up subjects the student isn't taking. Do not invent medical diagnoses. If asked for medical advice, provide nutritional/wellness patterns from the log but always advise seeing a professional.
+3. RESOURCE INTEGRATION: If a resource is attached (notes, PDF OCR, etc.), prioritize its content for academic answers.
+4. PERSONALIZED ADVICE: Use the Bio/Goals to frame advice. If the goal is "Pass Calculus", focus strategy on math tasks.
 
-  - If the user is asking about EVENTS or MILESTONES:
-    1. Start with a timeline overview.
-    2. Provide a Markdown Table: | Event | Date | Preparation | Importance |
-    3. End with a "Readiness Checklist".`;
+MANDATORY RESPONSE FORMATS:
+- For NUTRITION/FOOD: Start with a macro analysis. Provide Markdown Table: | Food Item | Protein | Fat | Carbs | Calories |. Link macros to focus levels.
+- For STUDY/TASKS: Start with current velocity. Provide Markdown Table: | Subject | Task | Status | Priority |.
+- For WELLNESS/HEALTH: Start with biometric summary. Provide Markdown Table: | Metric | Value | Status/Trend |. Identify correlations between sleep/mood and study streaks.`;
 
-  // Build the message parts for the latest interaction
-  if (lastUserMessage.attached) {
-    for (const res of lastUserMessage.attached) {
-      if (res.type === 'image' && res.fileData) {
-        const base64Data = res.fileData.split(',')[1] || res.fileData;
-        parts.push({
-          inlineData: {
-            mimeType: 'image/png',
-            data: base64Data
+  const geminiContents = messages.map(msg => {
+    const parts: any[] = [];
+    
+    if (msg.attached) {
+      msg.attached.forEach(res => {
+        let resourceContextText = `[ATTACHED RESOURCE: ${res.title}]\nType: ${res.type}\n`;
+        if (res.notes) {
+          resourceContextText += `EXTRACTED CONTENT/OCR:\n"""\n${res.notes}\n"""\n`;
+        }
+        parts.push({ text: resourceContextText });
+
+        if (res.fileData) {
+          try {
+            const mimeTypeMatch = res.fileData.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'application/octet-stream';
+            const base64Data = res.fileData.split(',')[1] || res.fileData;
+
+            if (mimeType.startsWith('image/') || mimeType === 'application/pdf') {
+              parts.push({
+                inlineData: { mimeType, data: base64Data }
+              });
+            }
+          } catch (e) {
+            console.error("Error processing attachment binary data:", e);
           }
-        });
-      }
-      parts.push({ text: `[ATTACHED RESOURCE: ${res.title}]\nType: ${res.type}\nNotes: ${res.notes || 'N/A'}` });
+        }
+      });
     }
-  }
 
-  parts.push({ text: lastUserMessage.content });
+    parts.push({ text: msg.content });
+
+    return {
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: parts
+    };
+  });
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: [{ role: 'user', parts }],
-    config: {
-      systemInstruction
-    }
+    contents: geminiContents,
+    config: { systemInstruction }
   });
 
-  return response.text || "I'm having trouble connecting to my neural network right now.";
+  return response.text || "Neural bridge timeout. Verify your data stream.";
 };

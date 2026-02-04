@@ -1,5 +1,5 @@
 
-import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, OpenRouterConfig, Resource } from "../types";
+import { Subject, MoodEntry, StudyTask, WellnessInsight, UserProfile, OpenRouterConfig, Resource, AppStats } from "../types";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -70,24 +70,55 @@ const callOpenRouter = async (config: OpenRouterConfig, systemPrompt: string, us
 export const sendChatMessage = async (
   config: OpenRouterConfig, 
   profile: UserProfile, 
-  context: { subjects: Subject[], tasks: StudyTask[], moods: MoodEntry[] }, 
+  context: { 
+    subjects: Subject[], 
+    tasks: StudyTask[], 
+    moods: MoodEntry[],
+    stats: AppStats
+  }, 
   messages: { role: 'user' | 'assistant', content: string, attached?: Resource[] }[]
 ) => {
   if (!config.apiKey) throw new Error("API Key missing");
 
+  const completionRate = context.tasks.length > 0 ? Math.round((context.tasks.filter(t => t.completed).length / context.tasks.length) * 100) : 0;
+
   const system = `You are MindTrack AI assistant. Help with academic scheduling and wellness.
-  Student Profile: ${profile.name} (${profile.stream}, Year ${profile.collegeYear}).
-  Academic Context: ${context.subjects.length} subjects, ${context.tasks.filter(t => !t.completed).length} pending tasks.
-  Wellness Context: ${context.moods.length} logs recorded.
-  Provide intelligent and encouraging advice. Use attached resources as context.`;
+  
+STUDENT IDENTITY:
+- Name: ${profile.name} | Age: ${profile.age} | Stream: ${profile.stream} | Blood: ${profile.bloodType}
+- Bio: ${profile.bio}
+
+ACADEMIC STATE:
+- Progress: ${completionRate}% | Subjects: ${context.subjects.length} | XP: ${context.stats.points}
+
+WELLNESS JOURNAL (CONTEXT):
+${JSON.stringify(context.moods.slice(-5))}
+
+GROUNDING: ONLY use this data. NO HALLUCINATION. If a file/image OCR text is provided in resources, use it.`;
 
   const mappedMessages = messages.map(m => {
-    let content = m.content;
     if (m.attached && m.attached.length > 0) {
-      const resourceContext = m.attached.map(r => `[ATTACHMENT: ${r.title}] Notes: ${r.notes || 'None'}`).join('\n');
-      content = `[CONTEXT ATTACHMENTS]\n${resourceContext}\n\nUser Query: ${content}`;
+      let combinedText = m.content;
+      const contentArray: any[] = [];
+      
+      m.attached.forEach(res => {
+        let resourceInfo = `\n\n[ATTACHED RESOURCE: ${res.title}]\nType: ${res.type}`;
+        if (res.notes) resourceInfo += `\nEXTRACTED OCR CONTENT:\n"""\n${res.notes}\n"""`;
+        
+        combinedText += resourceInfo;
+
+        if (res.fileData && res.fileData.startsWith('data:image/')) {
+          contentArray.push({
+            type: "image_url",
+            image_url: { url: res.fileData }
+          });
+        }
+      });
+      
+      contentArray.unshift({ type: "text", text: combinedText });
+      return { role: m.role, content: contentArray };
     }
-    return { role: m.role, content };
+    return { role: m.role, content: m.content };
   });
 
   const response = await fetch(OPENROUTER_URL, {

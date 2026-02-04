@@ -151,26 +151,24 @@ const AIChatbot: React.FC<Props> = ({ state, onAddTasks, onAddResource }) => {
     try {
       let responseContent = "";
       
-      // Use OpenRouter if a key is provided in Settings, otherwise fall back to Gemini
+      const context = {
+        subjects: state.subjects,
+        tasks: state.studyTasks,
+        moods: state.moodEntries,
+        stats: state.stats
+      };
+
       if (state.openRouterConfig.apiKey) {
         responseContent = await sendOpenRouterMessage(
           state.openRouterConfig,
           state.profile,
-          { 
-            subjects: state.subjects, 
-            tasks: state.studyTasks, 
-            moods: state.moodEntries 
-          },
+          context,
           newMessages
         );
       } else {
         responseContent = await sendGeminiMessage(
           state.profile,
-          { 
-            subjects: state.subjects, 
-            tasks: state.studyTasks, 
-            moodCount: state.moodEntries.length 
-          },
+          context,
           newMessages
         );
       }
