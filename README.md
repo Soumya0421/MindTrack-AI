@@ -46,5 +46,3 @@ All guidance is advisory and based only on user-provided data.
 
 ## ⚠️ Disclaimer
 MindTrack AI does **not** provide medical advice, diagnosis, or treatment. All wellness insights are informational only.
-
----
