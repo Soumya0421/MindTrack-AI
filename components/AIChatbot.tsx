@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { sendMultimodalMessage } from '../services/geminiService';
+import { sendMultimodalMessage as sendGeminiMessage } from '../services/geminiService.ts';
+import { sendChatMessage as sendOpenRouterMessage } from '../services/openRouterService.ts';
 
 interface Props {
   state: AppState;
@@ -126,7 +127,6 @@ const AIChatbot: React.FC<Props> = ({ state, onAddTasks, onAddResource }) => {
     const userMsg = input.trim();
     const activeTag = PROMPT_TAGS.find(t => t.id === activeTagId);
     
-    // If a tag is active and input is empty, use the tag's context as the prompt
     let finalUserMsg = userMsg;
     if (!userMsg && activeTag) {
         finalUserMsg = `Please analyze my ${activeTag.label} status and provide the required summary and breakdown table.`;
@@ -134,7 +134,6 @@ const AIChatbot: React.FC<Props> = ({ state, onAddTasks, onAddResource }) => {
     
     if ((!finalUserMsg && selectedAttachments.length === 0) || isLoading) return;
 
-    // Prepend the context prompt for the AI's logic
     const contextContent = activeTag ? `[TAG: ${activeTag.label}] ${activeTag.contextPrompt}\n\n${finalUserMsg}` : finalUserMsg;
 
     const currentAttachments = [...selectedAttachments];
@@ -150,15 +149,37 @@ const AIChatbot: React.FC<Props> = ({ state, onAddTasks, onAddResource }) => {
     setIsLoading(true);
 
     try {
-      const responseContent = await sendMultimodalMessage(
-        state.profile,
-        { subjects: state.subjects, tasks: state.studyTasks, moodCount: state.moodEntries.length },
-        newMessages
-      );
+      let responseContent = "";
+      
+      // Use OpenRouter if a key is provided in Settings, otherwise fall back to Gemini
+      if (state.openRouterConfig.apiKey) {
+        responseContent = await sendOpenRouterMessage(
+          state.openRouterConfig,
+          state.profile,
+          { 
+            subjects: state.subjects, 
+            tasks: state.studyTasks, 
+            moods: state.moodEntries 
+          },
+          newMessages
+        );
+      } else {
+        responseContent = await sendGeminiMessage(
+          state.profile,
+          { 
+            subjects: state.subjects, 
+            tasks: state.studyTasks, 
+            moodCount: state.moodEntries.length 
+          },
+          newMessages
+        );
+      }
 
       setMessages(prev => [...prev, { role: 'assistant', content: responseContent || "Neural processing complete." }]);
     } catch (e: any) {
-      setError(e.message || "An unexpected neural sync error occurred.");
+      const errorMessage = e.message || "An unexpected neural sync error occurred.";
+      setError(errorMessage);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errorMessage}. Please check your API key in Settings.` }]);
     } finally {
       setIsLoading(false);
     }
