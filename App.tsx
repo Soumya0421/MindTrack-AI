@@ -67,14 +67,12 @@ const App: React.FC = () => {
     localStorage.setItem('mindtrack_v4_state', JSON.stringify(state));
   }, [state]);
 
-  // Force settings if incomplete
   useEffect(() => {
     if (!isProfileComplete && activeTab !== 'settings') {
       setActiveTab('settings');
     }
   }, [isProfileComplete, activeTab]);
 
-  // Enhanced Periodic Wellness Synchronization with full state context
   useEffect(() => {
     const syncWellness = async () => {
       if (state.moodEntries.length > 0 && isProfileComplete) {
@@ -110,18 +108,15 @@ const App: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     setState(prev => {
       if (prev.stats.lastCheckInDate === today) return prev;
-      
       let newStreak = prev.stats.streak;
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
       if (prev.stats.lastCheckInDate === yesterdayStr) {
         newStreak += 1;
       } else {
         newStreak = 1;
       }
-
       return {
         ...prev,
         stats: { ...prev.stats, lastCheckInDate: today, streak: newStreak, points: prev.stats.points + 50 }
@@ -167,124 +162,121 @@ const App: React.FC = () => {
   const updateConfig = (config: OpenRouterConfig) => setState(prev => ({ ...prev, openRouterConfig: config }));
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'planner', label: 'Study Plan', icon: <Calendar size={20} /> },
-    { id: 'productivity', label: 'Focus Timer', icon: <Zap size={20} /> },
-    { id: 'mood', label: 'Wellness', icon: <Smile size={20} /> },
-    { id: 'resources', label: 'Resource Hub', icon: <Library size={20} /> },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={20} /> },
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'planner', label: 'Study Plan', icon: <Calendar size={18} /> },
+    { id: 'productivity', label: 'Focus Timer', icon: <Zap size={18} /> },
+    { id: 'mood', label: 'Wellness', icon: <Smile size={18} /> },
+    { id: 'resources', label: 'Resource Hub', icon: <Library size={18} /> },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-[#f8fafc] flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-screen bg-[#f8fafc] flex flex-col lg:flex-row overflow-hidden">
       {/* Mobile Drawer Overlay */}
       {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-all duration-300" onClick={() => setIsSidebarOpen(false)} />}
       
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-100 transition-all duration-300 ease-in-out transform lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex flex-col h-full">
-          <div className="p-10 flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="bg-[#6366f1] p-3 rounded-2xl text-white shadow-xl shadow-indigo-100"><Brain size={26} /></div>
-              <span className="text-2xl font-black text-slate-800 tracking-tighter">MindTrack</span>
-            </div>
-            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600">
-              <X size={24} />
-            </button>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 md:w-72 bg-white border-r border-slate-100 transition-all duration-300 ease-in-out transform lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 md:p-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#6366f1] p-2 rounded-xl text-white shadow-lg"><Brain size={22} /></div>
+            <span className="text-xl font-black text-slate-800 tracking-tighter">MindTrack</span>
           </div>
-          <nav className="flex-1 px-6 space-y-2 overflow-y-auto custom-scrollbar">
-            {navItems.map(item => {
-              const isLocked = item.id !== 'settings' && !isProfileComplete;
-              return (
-                <button 
-                  key={item.id} 
-                  disabled={isLocked}
-                  onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-6 py-5 rounded-[1.5rem] transition-all duration-300 font-bold text-sm ${
-                    activeTab === item.id 
-                      ? 'bg-[#6366f1] text-white shadow-2xl shadow-indigo-200 scale-[1.03] active:scale-100' 
-                      : isLocked 
-                        ? 'text-slate-200 cursor-not-allowed opacity-50' 
-                        : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-5">
-                    <div className={`${activeTab === item.id ? 'text-white' : isLocked ? 'text-slate-200' : 'text-slate-400'} transition-colors`}>
-                      {item.icon}
-                    </div>
-                    <span className="tracking-tight">{item.label}</span>
-                  </div>
-                  {isLocked && <Lock size={14} className="text-slate-200" />}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="p-8 space-y-6">
-            <div className="px-6 py-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center gap-5 group transition-all hover:border-indigo-200">
-               <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-500 group-hover:text-indigo-600">
-                 <Cpu size={18} />
-               </div>
-               <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">AI Cluster</p>
-                  <p className="text-xs font-black text-slate-700 truncate mt-0.5">
-                    {state.openRouterConfig.apiKey ? (state.openRouterConfig.selectedModel.split('/').pop() || 'OpenRouter') : 'System Offline'}
-                  </p>
-               </div>
-            </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
+          {navItems.map(item => {
+            const isLocked = item.id !== 'settings' && !isProfileComplete;
+            return (
+              <button 
+                key={item.id} 
+                disabled={isLocked}
+                onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }} 
+                className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all duration-200 font-bold text-sm ${
+                  activeTab === item.id 
+                    ? 'bg-[#6366f1] text-white shadow-xl shadow-indigo-100' 
+                    : isLocked 
+                      ? 'text-slate-200 cursor-not-allowed opacity-50' 
+                      : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="transition-colors">{item.icon}</div>
+                  <span className="tracking-tight">{item.label}</span>
+                </div>
+                {isLocked && <Lock size={12} className="text-slate-200" />}
+              </button>
+            );
+          })}
+        </nav>
 
-            <div className="bg-[#161b2e] text-white rounded-[3rem] p-10 space-y-6 relative overflow-hidden shadow-2xl">
-               <div className="relative z-10">
-                 <div className="flex justify-between items-center mb-1">
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] opacity-50">Global Rank</p>
-                    <span className="text-[11px] font-black text-amber-400 uppercase">Tier {Math.floor(state.stats.level / 5) + 1}</span>
-                 </div>
-                 <p className="text-4xl font-black tabular-nums tracking-tighter">{state.stats.points}</p>
-                 <div className="h-2.5 bg-white/10 rounded-full mt-5 overflow-hidden">
-                    <div className="h-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.6)] transition-all duration-700 ease-out" style={{width: `${(state.stats.points % 1000) / 10}%`}}></div>
-                 </div>
-                 <p className="text-[10px] font-bold text-slate-500 mt-4 text-right">Next Milestone: {1000 - (state.stats.points % 1000)} XP</p>
+        <div className="p-4 space-y-4 shrink-0">
+          <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
+             <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-500">
+               <Cpu size={14} />
+             </div>
+             <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">AI Cluster</p>
+                <p className="text-[11px] font-black text-slate-700 truncate">
+                  {state.openRouterConfig.apiKey ? (state.openRouterConfig.selectedModel.split('/').pop() || 'OpenRouter') : 'Offline'}
+                </p>
+             </div>
+          </div>
+
+          <div className="bg-[#161b2e] text-white rounded-[2rem] p-6 space-y-4 relative overflow-hidden shadow-xl">
+             <div className="relative z-10">
+               <div className="flex justify-between items-center mb-1">
+                  <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Global Rank</p>
+                  <span className="text-[9px] font-black text-amber-400 uppercase">Tier {Math.floor(state.stats.level / 5) + 1}</span>
                </div>
-               <Sparkles size={100} className="absolute -right-8 -bottom-8 opacity-5 pointer-events-none" />
-            </div>
+               <p className="text-3xl font-black tabular-nums tracking-tighter">{state.stats.points}</p>
+               <div className="h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
+                  <div className="h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.6)] transition-all duration-700 ease-out" style={{width: `${(state.stats.points % 1000) / 10}%`}}></div>
+               </div>
+             </div>
+             <Sparkles size={60} className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none" />
           </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-w-0 h-full flex flex-col relative overflow-hidden">
+      <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
-        <header className="lg:hidden h-24 bg-white border-b border-slate-50 flex items-center justify-between px-8 shrink-0 z-30">
-          <div className="flex items-center gap-4">
-            <div className="bg-[#6366f1] p-2.5 rounded-xl text-white shadow-lg shadow-indigo-100"><Brain size={24} /></div>
-            <span className="font-black text-slate-800 text-xl tracking-tighter uppercase">MindTrack</span>
+        <header className="lg:hidden h-16 bg-white border-b border-slate-50 flex items-center justify-between px-6 shrink-0 z-30">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#6366f1] p-1.5 rounded-lg text-white"><Brain size={18} /></div>
+            <span className="font-black text-slate-800 text-lg tracking-tighter">MindTrack</span>
           </div>
-          <button onClick={() => setIsSidebarOpen(true)} className="p-4 bg-slate-50 rounded-2xl text-slate-500 hover:bg-slate-100 transition-colors">
-            <Menu size={26} />
+          <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-50 rounded-xl text-slate-500">
+            <Menu size={22} />
           </button>
         </header>
 
         {/* Content Container */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
           {!isProfileComplete && activeTab !== 'settings' ? (
-            <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-8 animate-in fade-in duration-500">
-               <div className="p-8 bg-indigo-50 text-indigo-600 rounded-[3rem] shadow-xl shadow-indigo-100">
-                 <Lock size={64} strokeWidth={2.5} />
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in fade-in duration-500">
+               <div className="p-6 bg-indigo-50 text-indigo-600 rounded-[2.5rem] shadow-lg shadow-indigo-100">
+                 <Lock size={48} />
                </div>
-               <div className="space-y-4 max-w-lg">
-                 <h2 className="text-4xl font-black text-slate-800 tracking-tight">System Initialization Required</h2>
-                 <p className="text-lg text-slate-500 font-medium leading-relaxed">
-                   Please complete your academic profile and provide an OpenRouter API key in the Settings tab to unlock neural planning and wellness tracking.
+               <div className="space-y-2 max-w-sm">
+                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">System Locked</h2>
+                 <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                   Setup your academic profile and OpenRouter API key to continue.
                  </p>
                </div>
                <button 
                 onClick={() => setActiveTab('settings')}
-                className="px-12 py-6 bg-[#6366f1] text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+                className="px-8 py-4 bg-[#6366f1] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all"
                >
                  Go to Settings
                </button>
             </div>
           ) : (
-            <div className="p-6 sm:p-10 md:p-12 lg:p-16 xl:p-20 max-w-[1600px] mx-auto w-full">
+            <div className="p-4 sm:p-6 md:p-10 max-w-[1440px] mx-auto w-full">
               {activeTab === 'dashboard' && <Dashboard state={state} onCheckIn={handleDailyCheckIn} />}
               {activeTab === 'planner' && (
                 <StudyPlanner 
@@ -305,7 +297,6 @@ const App: React.FC = () => {
           )}
         </div>
         
-        {/* Chatbot Overlay - Always accessible if complete */}
         {isProfileComplete && <AIChatbot state={state} onAddTasks={addTasks} onAddResource={addResource} />}
       </main>
     </div>

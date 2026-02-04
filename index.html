@@ -1,9 +1,9 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MindTrack AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -11,9 +11,15 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
+            height: 100%;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #root {
+            height: 100%;
         }
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
@@ -30,8 +36,8 @@
             width: 100%;
             border-collapse: collapse;
             margin: 1rem 0;
-            font-size: 0.85rem;
-            border-radius: 1rem;
+            font-size: 0.8rem;
+            border-radius: 0.75rem;
             overflow: hidden;
             border: 1px solid #e2e8f0;
         }
@@ -39,14 +45,14 @@
             background-color: #f8fafc;
             font-weight: 800;
             text-align: left;
-            padding: 0.75rem;
+            padding: 0.5rem;
             border-bottom: 2px solid #e2e8f0;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #64748b;
         }
         .markdown-content td {
-            padding: 0.75rem;
+            padding: 0.5rem;
             border-bottom: 1px solid #f1f5f9;
             color: #1e293b;
         }
