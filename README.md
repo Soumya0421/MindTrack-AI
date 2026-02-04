@@ -1,20 +1,50 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# MindTrack AI 🧠📚
 
-# Run and deploy your AI Studio app
+**MindTrack AI** is an AI-powered student productivity and wellness application that intelligently combines **study planning**, **focus management**, and **mental–physical wellness tracking** into a single unified platform.
 
-This contains everything you need to run your app locally.
+Designed for students, MindTrack AI bridges **EdTech and Wellness (MedTech-inspired)** domains without involving real doctors or medical diagnosis.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1hPy6V8d7PcYQjUUNdhnrzq7orQpluqiH
+---
 
-## Run Locally
+## 🚩 Problem
+Students often struggle with:
+- Poor time management and exam pressure
+- Low focus and burnout
+- Fragmented tools for study, tasks, and wellness
+- Lack of personalized, adaptive guidance
 
-**Prerequisites:**  Node.js
+---
 
+## 💡 Solution
+MindTrack AI uses AI to correlate **academic behavior** with **wellness inputs** (sleep, stress, mood, food, activity) and provides:
+- Optimized study schedules
+- Focus session tracking
+- Wellness insights and summaries
+- Context-aware AI assistance
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+All guidance is advisory and based only on user-provided data.
+
+---
+
+## 🛠️ Key Features
+- 📅 AI-powered study planner & calendar
+- ⏱️ Focus timer with session logs
+- ❤️ Wellness check-ins & symptom journaling
+- 📊 Dashboard with charts and insights
+- 📚 Resource hub with YouTube transcription
+- 🤖 Neural Link AI chat assistant (via OpenRouter)
+
+---
+
+## 🧩 Technical Overview
+- **Frontend:** Web-based UI
+- **AI Models:** OpenRouter API (free LLMs)
+- **Data Storage:** Browser-based local cache (session storage)
+- **Deployment:** Lightweight, privacy-focused
+
+---
+
+## ⚠️ Disclaimer
+MindTrack AI does **not** provide medical advice, diagnosis, or treatment. All wellness insights are informational only.
+
+---
